@@ -71,7 +71,6 @@ SELECT student.name, course.title, roster.role
     JOIN roster ON student.id = roster.student_id
     JOIN course ON roster.course_id = course.id
     ORDER BY course.title, roster.role DESC, student.name;
-    
---output
-![Screenshot 2021-07-29 000152](https://user-images.githubusercontent.com/66962188/127380919-40b7957c-bd2f-4d04-9fdb-9d8212f99aa5.jpg)
 ```
+#### Output
+![Screenshot 2021-07-29 000152](https://user-images.githubusercontent.com/66962188/127380919-40b7957c-bd2f-4d04-9fdb-9d8212f99aa5.jpg)
