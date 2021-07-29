@@ -109,9 +109,89 @@ SELECT ct, abbrev FROM
 ) AS zap
 WHERE ct > 10;
 
+--CONCURRENCY: Databases are designed to accept SQL commands from a variety of sources simultaneously and make them atomically.
+--To implement atomicity, PostgreSQL command that might change an area of the database
+--All other access to that area must wait until the area is unlocked
+CREATE TABLE account (
+  id SERIAL,
+  email VARCHAR(128) UNIQUE,
+  created_at DATE NOT NULL DEFAULT NOW(),
+  updated_at DATE NOT NULL DEFAULT NOW(),
+  PRIMARY KEY(id)
+);
 
+CREATE TABLE post (
+  id SERIAL,
+  title VARCHAR(128) UNIQUE NOT NULL, -- Will extend with ALTER
+  content TEXT,
+  account_id INTEGER REFERENCES account(id) ON DELETE CASCADE,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  PRIMARY KEY(id)
+);
 
+-- Allow multiple comments
+CREATE TABLE comment (
+  id SERIAL,
+  content TEXT NOT NULL,
+  account_id INTEGER REFERENCES account(id) ON DELETE CASCADE,
+  post_id INTEGER REFERENCES post(id) ON DELETE CASCADE,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  PRIMARY KEY(id)
+);
 
+CREATE TABLE fav (
+  id SERIAL,
+  post_id INTEGER REFERENCES post(id) ON DELETE CASCADE,
+  account_id INTEGER REFERENCES account(id) ON DELETE CASCADE,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  UNIQUE(post_id, account_id),
+  PRIMARY KEY(id)
+);
 
+-- Do this twice
+INSERT INTO fav (post_id, account_id, howmuch)
+  VALUES (1,1,1)
+RETURNING *;
+
+UPDATE fav SET howmuch=howmuch+1
+  WHERE post_id = 1 AND account_id = 1
+RETURNING *;
+
+INSERT INTO fav (post_id, account_id, howmuch)
+  VALUES (1,1,1)
+  ON CONFLICT (post_id, account_id) 
+  DO UPDATE SET howmuch = fav.howmuch + 1;
+
+INSERT INTO fav (post_id, account_id, howmuch)
+  VALUES (1,1,1)
+  ON CONFLICT (post_id, account_id) 
+  DO UPDATE SET howmuch = fav.howmuch + 1
+RETURNING *;
+
+--SINGLE SQL statements are also atomic
+-- All the inserts will work and get a unique primary key
+-- Which account gets which key is not predictable
+-- The insert statementss has to line up. The database will process these one at a time
+-- TRANSACTIONS (try in two windows)
+
+BEGIN;
+SELECT howmuch FROM fav WHERE account_id=1 AND post_id=1 FOR UPDATE OF fav;
+-- Time passes... 
+UPDATE fav SET howmuch=999 WHERE account_id=1 AND post_id=1;
+SELECT howmuch FROM fav WHERE account_id=1 AND post_id=1;
+ROLLBACK;
+SELECT howmuch FROM fav WHERE account_id=1 AND post_id=1;
+
+BEGIN;
+SELECT howmuch FROM fav WHERE account_id=1 AND post_id=1 FOR UPDATE OF fav;
+-- Time passes... 
+UPDATE fav SET howmuch=999 WHERE account_id=1 AND post_id=1;
+SELECT howmuch FROM fav WHERE account_id=1 AND post_id=1;
+COMMIT;
+SELECT howmuch FROM fav WHERE account_id=1 AND post_id=1;
+-- Transactions and Performance: The implementation of transactions make a big difference in database performance
 
 
