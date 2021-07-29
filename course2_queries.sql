@@ -194,4 +194,41 @@ COMMIT;
 SELECT howmuch FROM fav WHERE account_id=1 AND post_id=1;
 -- Transactions and Performance: The implementation of transactions make a big difference in database performance
 
+--STORED PROCEDURES:
+--- A stored procedure is a bit of resuable code that runs inside of the database server.
+---- Technically there are multiple language choices but just use 'plpqsql'
+---- Generally quite non-portable
+---- Usually the goal is to have fever SQL statements
+---- You should have a strong reason to use a stored procedure 
+----- Majore performance problem
+----- Harder to test/modify
+----- No database portability
+----- Some rule that must be enforced
+
+CREATE TABLE keyvalue ( 
+  id SERIAL,
+  key VARCHAR(128) UNIQUE,
+  value VARCHAR(128) UNIQUE,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  PRIMARY KEY(id)
+);
+
+--create a stored procedure
+CREATE OR REPLACE FUNCTION trigger_set_timestamp()
+RETURNS TRIGGER AS $$
+BEGIN
+  NEW.updated_at = NOW();
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER set_timestamp
+BEFORE UPDATE ON keyvalue
+FOR EACH ROW
+EXECUTE PROCEDURE trigger_set_timestamp();
+--each time a value in keyvalue is changed, the updated_at value changes
+
+
+
 
